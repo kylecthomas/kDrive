@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<hardware>
+
+	<!-- UART configuration -->
+	<!-- Settings: @115200bps, no RTS/CTS and BGAPI serial protocol is disabled -->
+	<uart index="1" baud="115200" flowcontrol="false" tx_pin="PA0" rx_pin="PA1" rts_pin="PA2" cts_pin="PA3" bgapi="false"/>
+
+	<!-- GPIO configurationt needed for WSTK VCOM UART to work -->
+	<!-- <gpio port="A" pin="0" mode="pushpull" out="0" /> -->
+	<!-- <gpio port="A" pin="1" mode="pushpull" out="0" /> -->
+	<gpio port="A" pin="2" mode="pushpull" out="0" /> 
+	<gpio port="A" pin="3" mode="pushpull" out="0" /> 
+	
+	
+	<!-- I2C configuration -->
+	<!-- Settings: SCL pin is PC11 and SDA pin is PC10 -->
+	<i2c scl_pin="PC11" sda_pin="PC10"/>
+	<gpio port="C" pin="9" mode="input" out="0" interrupt="both"/><!-- I2C Interrupt -->
+
+
+	<!-- LEDS -->
+	<gpio port="C" pin="6" mode="pushpull" out="0"/><!-- LED 0 -->
+	<gpio port="C" pin="7" mode="pushpull" out="0"/><!-- LED 1 -->
+	<gpio port="C" pin="8" mode="pushpull" out="0"/><!-- LED 2 -->
+
+
+	
+	<gpio port="F" pin="2" mode="input" out="0" interrupt="both"/><!-- Button Up -->
+	<gpio port="F" pin="3" mode="input" out="0" interrupt="both"/><!-- Button Down -->
+	<gpio port="F" pin="4" mode="input" out="0" interrupt="both"/><!-- Button Left -->
+	<gpio port="F" pin="5" mode="input" out="0" interrupt="both"/><!-- Button Right -->
+	<gpio port="F" pin="6" mode="input" out="0" interrupt="both"/><!-- Button 1 -->
+	<gpio port="F" pin="7" mode="input" out="0" interrupt="both"/><!-- Button 2 -->
+	<gpio port="D" pin="13" mode="input" out="0" interrupt="both"/><!-- Button 3 -->
+	<gpio port="D" pin="14" mode="input" out="0" interrupt="both"/><!-- Button 4 -->
+
+	
+</hardware>
+

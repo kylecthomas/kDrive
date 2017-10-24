@@ -1,0 +1,176 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<gatt>
+
+	<!-- Generic Access Service -->
+	<service uuid="1800">
+		
+		<!-- Device name -->
+		<characteristic uuid="2a00">
+			<properties read="true" const="true" />
+			<value>kDrive</value>
+		</characteristic>
+
+		<!-- Appearances -->
+		<characteristic uuid="2a01">
+			<properties read="true" const="true" />
+			<!-- HID -->
+			<value type="hex">0960</value>
+		</characteristic>
+
+	</service>
+
+	<!-- Device Information Service -->
+	<!-- https://developer.bluetooth.org/gatt/services/Pages/ServiceViewer.aspx?u=org.bluetooth.service.device_information.xml -->
+	<service uuid="180A">
+
+		<description>Device Information Service</description>
+	
+		<!-- Manufacturer name string -->
+		<!-- https://developer.bluetooth.org/gatt/characteristics/Pages/CharacteristicViewer.aspx?u=org.bluetooth.characteristic.manufacturer_name_string.xml -->
+		<characteristic uuid="2A29">
+			<properties read="true" const="true" />
+			<value>Thomas Corp</value>
+		</characteristic>
+
+		<!-- Model number string string -->
+		<!-- https://developer.bluetooth.org/gatt/characteristics/Pages/CharacteristicViewer.aspx?u=org.bluetooth.characteristic.model_number_string.xml -->
+		<characteristic uuid="2A24">
+			<properties read="true" const="true" />
+			<value>kDrive v1.0</value>
+		</characteristic>
+
+		<!-- Serial number string -->
+		<!-- https://developer.bluetooth.org/gatt/characteristics/Pages/CharacteristicViewer.aspx?u=org.bluetooth.characteristic.system_id.xml -->
+		<characteristic uuid="2A23">
+			<properties read="true" const="true" />
+			<value type="hex">000780000047</value>
+		</characteristic>
+
+	</service>
+	
+	<!-- Link Loss Service -->
+	<!-- https://developer.bluetooth.org/gatt/services/Pages/ServiceViewer.aspx?u=org.bluetooth.service.link_loss.xml -->	
+	<service uuid="1803" advertise="true" >
+        <description>Link Loss</description>
+	
+		<!-- Alert Level -->	
+		<characteristic uuid="2a06" id="xgatt_lloss">
+			<properties read="true" write="true" />
+			<value length="1" />
+		</characteristic>
+		
+     </service>
+
+	<!-- Immediate Alert Service -->
+	<!-- https://developer.bluetooth.org/gatt/services/Pages/ServiceViewer.aspx?u=org.bluetooth.service.immediate_alert.xml -->
+	<service uuid="1802" advertise="true" >
+		<description>Immediate Alert</description>
+
+		<!-- Alert Level -->
+		<characteristic uuid="2a06" id="xgatt_alert">
+			<properties write_no_response="true" />
+			<value length="1" />
+		</characteristic>
+
+	</service>
+
+	<!-- TX Power Service -->
+	<!-- https://developer.bluetooth.org/gatt/services/Pages/ServiceViewer.aspx?u=org.bluetooth.service.immediate_alert.xml -->	
+	<service uuid="1804" advertise="true" >
+
+		<description>TX Power</description>
+
+		<!-- TX Power Level -->		
+		<characteristic uuid="2a07" id="xgatt_txpower">
+			<properties read="true"/>
+			<value length="1" />
+		</characteristic>
+
+	</service>
+
+
+	<!-- Genereic Attribute Service -->
+	<service uuid="6cc7ff65-51a9-4f5a-a741-2e7a5c7f400f" advertise="true">
+		<description>kDrive Buttons</description>
+
+		<characteristic uuid="5d6853f1-51a5-4442-b9bf-19eb5aa080b9" id="button1">
+			<!-- Button 1 -->
+			<properties indicate="true" read="true" write="true"/>
+			<value length="3" type="hex">1</value>
+		</characteristic>
+
+		<characteristic uuid="8f02502e-e775-4602-8237-eea1b8c028eb" id="button2">
+			<!-- Button 2 -->
+			<properties indicate="true" read="true" write="true"/>
+			<value length="3" type="hex">2</value>
+		</characteristic>
+
+		<characteristic uuid="9e746067-95a8-4d05-8dcc-4bf4c0cbb99d" id="button3">
+			<!-- Button 3 -->
+			<properties indicate="true" read="true" write="true"/>
+			<value length="3" type="hex">3</value>
+		</characteristic>
+
+		<characteristic uuid="5b58c282-d381-4a6e-969a-31d2f55a544d" id="button4">
+			<!-- Button 4 -->
+			<properties indicate="true" read="true" write="true"/>
+			<value length="3" type="hex">4</value>
+		</characteristic>
+
+		<characteristic uuid="0b1a2f4c-bb49-4db0-b387-2449eca4f988" id="button5">
+			<!-- Button 5 -->
+			<properties indicate="true" read="true" write="true"/>
+			<value length="3" type="hex">5</value>
+		</characteristic>
+
+		<characteristic uuid="56214007-6389-42c2-8945-32a120b4e569" id="button6">
+			<!-- Button 6 -->
+			<properties indicate="true" read="true" write="true"/>
+			<value length="3" type="hex">6</value>
+		</characteristic>
+		
+		<characteristic uuid="00e6423f-c59a-4a2b-97c8-e1cf6915fc75" id="button7">
+			<!-- Button 7 -->
+			<properties indicate="true" read="true" write="true"/>
+			<value length="3" type="hex">7</value>
+		</characteristic>
+
+		<characteristic uuid="402cf21b-94d5-4145-85a5-a3a3875ee937" id="button8">
+			<!-- Button 8 -->
+			<properties indicate="true" read="true" write="true"/>
+			<value length="3" type="hex">8</value>
+		</characteristic>
+
+		<characteristic uuid="f8c7bf32-3bca-4a52-aebb-b817900b623f" id="gattSliderPacket">
+			<!-- Slide Position  -->
+			<properties notify="true" read="true" write="true"/>
+			<value length="20" variable_length="true" type="hex">9</value>
+		</characteristic>
+
+		<!--
+		<characteristic uuid="cc01623c-af63-4d1e-9b06-4b76b3833358" id="sliderDirection">
+			<properties indicate="true" read="true" write="true"/>
+			<value type="hex">10</value>
+		</characteristic>
+
+		<characteristic uuid="5a33c230-11d7-42de-942e-f67ecdab02f5" id="sliderSpeed">
+			<properties indicate="true" read="true" write="true"/>
+			<value type="hex">11</value>
+		</characteristic>
+
+		<characteristic uuid="9bccdc4b-ace7-497c-bf83-a156cbc5c863" id="sliderFlick">
+			<properties indicate="true" read="true" write="true"/>
+			<value type="hex">12</value>
+		</characteristic>
+
+		<characteristic uuid="dc246a90-11d0-4d38-8d75-cbac2b047d7f" id="sliderCount">
+			<properties indicate="true" read="true" write="true"/>
+			<value type="hex">13</value>
+		</characteristic>
+		-->
+
+
+	</service>
+
+</gatt>

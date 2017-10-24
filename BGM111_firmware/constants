@@ -1,0 +1,12 @@
+xgatt_lloss 15
+xgatt_alert 18
+xgatt_txpower 21
+button1 24
+button2 27
+button3 30
+button4 33
+button5 36
+button6 39
+button7 42
+button8 45
+gattSliderPacket 48

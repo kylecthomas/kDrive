@@ -1,0 +1,16 @@
+# Variable definitions
+export dim result, len, data
+dim t(4)
+
+# This procedure initializes the GPIO pins for the WSTK main board
+export procedure init()
+	# Configure GPIO as push-pull output
+    #call hardware_configure_gpio(5,6,hardware_gpio_mode_push_pull,1)
+	# Configure GPIO as input
+	 #call hardware_configure_gpio(5,7,hardware_gpio_mode_input_pull,1)
+	 #call hardware_configure_gpio(5,7,hardware_gpio_mode_push_pull,1)
+    
+	#call hardware_configure_gpio(5,2,hardware_gpio_mode_push_pull,1)
+
+end 
+

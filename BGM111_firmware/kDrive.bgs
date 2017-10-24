@@ -1,0 +1,937 @@
+#TO DO: 5/17: call le_connection_set_parameters(connection, 6, 6, 0, 80)
+#		connection interval set to fastest speed
+#		use variable "currentConnection"
+
+
+
+# ================================================================
+# kDrive Firmware
+#
+# ----------------------------------------------------------------
+# CHANGELOG:
+#   
+# ================================================================
+
+
+#Test Varaibles
+
+# Variable definitions
+dim led1Level
+dim led2Level
+# ADVertizement data
+dim timer
+
+dim oldVal
+dim result
+dim valLen
+dim writeResult
+dim buttonToggle
+dim buttonPacket(3)
+dim sliderPacket(5)
+dim sliderPos
+dim sliderSpeed
+dim sliderSpeedTotal
+dim sliderSpeedAverage
+dim sliderSpeedCounter
+dim sliderDirection
+dim sliderStart
+dim sliderEnd
+dim sliderIndex
+dim sliderRelease
+
+# Connection and Pairing
+dim is_connected
+dim currentConnection
+
+
+#LEDs
+const PORT_LED0 = 2
+const PIN_LED0 = $40
+
+const PORT_LED1 = 2
+const PIN_LED1 = $80
+
+const PORT_LED2 = 2
+const PIN_LED2 = $100
+
+
+#CPT112
+const cpt112_adr = $70
+dim cpt112_result
+dim cpt112_len
+dim cpt112_data(4)
+dim cpt112_packet_counter
+
+#Button Interrupts
+#BUTTON ID 1
+const PORT_BUTTON_1 = 5
+const PIN_BUTTON_1 = $40  #Pin PF6
+dim button1_lastDown
+dim button1_lastUp
+dim button1_isDown
+
+#BUTTON ID 2
+const PORT_BUTTON_2 = 5
+const PIN_BUTTON_2 = $80  #Pin PF7
+dim button2_lastDown
+dim button2_lastUp
+dim button2_isDown
+
+#BUTTON ID 3
+const PORT_BUTTON_3 = 3
+const PIN_BUTTON_3 = $2000  #Pin PD13
+dim button3_lastDown
+dim button3_lastUp
+dim button3_isDown
+
+#BUTTON ID 4
+const PORT_BUTTON_4 = 3
+const PIN_BUTTON_4 = $4000  #Pin PD14
+dim button4_lastDown
+dim button4_lastUp
+dim button4_isDown
+
+#BUTTON ID 5
+const PORT_BUTTON_5 = 5
+const PIN_BUTTON_5 = $4  #Pin PF2
+dim button5_lastDown
+dim button5_lastUp
+dim button5_isDown
+
+#BUTTON ID 6
+const PORT_BUTTON_6 = 5
+const PIN_BUTTON_6 = $8  #Pin PF3
+dim button6_lastDown
+dim button6_lastUp
+dim button6_isDown
+
+#BUTTON ID 7
+const PORT_BUTTON_7 = 5
+const PIN_BUTTON_7 = $10  #Pin PF4
+dim button7_lastDown
+dim button7_lastUp
+dim button7_isDown
+
+#BUTTON ID 8
+const PORT_BUTTON_8 = 5
+const PIN_BUTTON_8 = $20  #Pin PF5
+dim button8_lastDown
+dim button8_lastUp
+dim button8_isDown
+
+#CPT112 INTERRUPT
+const PORT_BUTTON_CPT112_INT = 2
+const PIN_BUTTON_CPT112_INT = $200  #Pin PC9
+
+dim lastDown
+dim lastUp
+
+#Click Characteristics
+const longClickTime = 1000
+const doubleClickTime = 250
+const SINGLECLICK = 1
+const LONGCLICK = 2
+const DOUBLECLICK = 3
+dim timeDif
+
+
+#Debug variables
+dim itoaVal(20)
+dim itoaLen
+dim stringVal(25)
+dim tempInt
+
+
+# Import Peripheral library
+import "peripheral.bgs" 
+
+
+procedure printString(stringLen,string)
+	call endpoint_send(2, stringLen, string)
+	call endpoint_send(2,2,"\r\n")
+end
+
+procedure printInt(int)
+	call util_itoa(int)(itoaLen, itoaVal(0:itoaLen))
+	call endpoint_send(2, itoaLen, itoaVal(0:itoaLen))
+	call endpoint_send(2, 2, "\r\n")
+end
+
+procedure println()
+		call endpoint_send(2,2,"\r\n")
+end
+
+procedure readCPT112()
+
+	#result of 0d1283 or 0x0503 means no I2C ack
+
+	cpt112_result=0
+	sliderIndex=0
+	sliderRelease = 0
+	sliderStart = 0
+	sliderEnd = 0
+
+	while(cpt112_result=0)
+
+		if(cpt112_result=0) then
+			call hardware_read_i2c(0,cpt112_adr,3)(cpt112_result,cpt112_len, cpt112_data(0:cpt112_len))
+			call hardware_stop_i2c(0)	
+			
+			if(cpt112_result=0) then
+				sliderPos = cpt112_data(2:1)
+
+
+				if(sliderPos < 101) then
+					if(sliderIndex=0) then
+						sliderStart = sliderPos
+					end if
+
+					sliderEnd = sliderPos	
+				end if	
+
+				if(sliderPos > 101) then
+					sliderRelease = 1	
+				end if
+
+				#call printInt(sliderPos)
+				sliderIndex=sliderIndex+1
+			end if
+
+		end if
+	end while
+
+	if(sliderStart > sliderEnd) then
+		sliderSpeed = sliderStart - sliderEnd	
+
+		if(sliderDirection = 1) then
+			sliderSpeedCounter=sliderSpeedCounter+1
+			sliderSpeedTotal = sliderSpeedTotal + sliderSpeed
+			sliderSpeedAverage = sliderSpeedTotal/sliderSpeedCounter
+		end if
+
+		if(sliderDirection = 2) then
+			sliderSpeedAverage = sliderSpeed
+			sliderSpeedTotal= sliderSpeed
+			sliderSpeedCounter = 1
+		end if
+		
+		sliderDirection = 1
+		call endpoint_send(2,11,"slider up\r\n")
+	end if
+
+	if (sliderEnd > sliderStart) then
+		sliderSpeed = sliderEnd - sliderStart
+
+		if(sliderDirection = 2) then
+			sliderSpeedCounter=sliderSpeedCounter+1
+			sliderSpeedTotal = sliderSpeedTotal + sliderSpeed
+			sliderSpeedAverage = sliderSpeedTotal/sliderSpeedCounter
+		end if
+
+		if(sliderDirection = 1) then
+			sliderSpeedAverage = sliderSpeed
+			sliderSpeedTotal= sliderSpeed
+			sliderSpeedCounter = 1
+		end if
+
+		sliderDirection = 2
+		call endpoint_send(2,13,"slider down\r\n")
+	end if
+
+	if (sliderEnd = sliderStart) then
+		sliderSpeed = 0
+		#sliderDirection = 1
+	end if
+		
+
+	sliderPacket(0:1) = sliderStart
+	sliderPacket(1:1) = sliderEnd
+	#sliderPacket(2:1) = sliderSpeed
+	sliderPacket(2:1) = sliderSpeedAverage
+	sliderPacket(3:1) = sliderDirection
+	sliderPacket(4:1) = sliderRelease
+
+	call printInt(sliderPacket(0:1))
+	call printInt(sliderPacket(1:1))
+	call printInt(sliderPacket(2:1))
+	call printInt(sliderPacket(3:1))
+	call printInt(sliderPacket(4:1))
+	#call printInt(sliderSpeedAverage)
+	#call printInt(sliderSpeedCounter)
+	call println()
+
+
+	call gatt_server_write_attribute_value(gattSliderPacket,0,5, sliderPacket(0:5)(writeResult))
+	call gatt_server_send_characteristic_notification($ff,gattSliderPacket,5, sliderPacket(0:5))
+
+end
+
+procedure sendButtonPush(buttonID, clickType)
+	#increment the gatt value for button 1
+	#reset the value when it gets to 15
+
+
+	if clickType = SINGLECLICK then
+		call endpoint_send(2,14,"single click\r\n")
+	end if
+		
+	if clickType = LONGCLICK then
+		call endpoint_send(2,12,"long click\r\n")
+	end if
+
+	if buttonID = 1 then 
+		call gatt_server_read_attribute_value(button1,0)(result,valLen, oldVal)
+	end if
+	if buttonID = 2 then
+		call gatt_server_read_attribute_value(button2,0)(result,valLen, oldVal)
+	end if
+	if buttonID = 3 then
+		call gatt_server_read_attribute_value(button3,0)(result,valLen, oldVal)
+	end if
+	if buttonID = 4 then
+		call gatt_server_read_attribute_value(button4,0)(result,valLen, oldVal)
+	end if
+	if buttonID = 5 then
+		call gatt_server_read_attribute_value(button5,0)(result,valLen, oldVal)
+	end if
+	if buttonID = 6 then
+		call gatt_server_read_attribute_value(button6,0)(result,valLen, oldVal)
+	end if
+	if buttonID = 7 then
+		call gatt_server_read_attribute_value(button7,0)(result,valLen, oldVal)
+	end if
+	if buttonID = 8 then
+		call gatt_server_read_attribute_value(button8,0)(result,valLen, oldVal)
+	end if
+
+	if (oldVal & 1) = 1 then
+		buttonToggle = 0 
+		call endpoint_send(2,7,"lsb=1\r\n")
+	else 
+		if (oldVal & 1) = 0 then
+			buttonToggle = 1
+			call endpoint_send(2,7,"lsb=0\r\n")
+		end if
+	end if
+
+
+	#Packet Description
+	#[ byte2  ][  byte1  ][   byte0    ]
+	#[buttonID][clickType][buttonToggle]
+	buttonPacket(2:1) = buttonID	
+	buttonPacket(1:1) = clickType
+	buttonPacket(0:1) = buttonToggle
+
+	writeResult=1
+
+	if buttonID = 1 then
+		call gatt_server_write_attribute_value(button1,0,3, buttonPacket(0:3))(writeResult)
+		call gatt_server_send_characteristic_notification($ff,button1,3, buttonPacket(0:3))
+		call endpoint_send(2,9,"write 1\r\n")
+	end if
+	if buttonID = 2 then
+		call gatt_server_write_attribute_value(button2,0,3, buttonPacket(0:3))(writeResult)
+		call gatt_server_send_characteristic_notification($ff,button2,3, buttonPacket(0:3))
+		call endpoint_send(2,9,"write 2\r\n")
+	end if
+	if buttonID = 3 then
+		call gatt_server_write_attribute_value(button3,0,3, buttonPacket(0:3))(writeResult)
+		call gatt_server_send_characteristic_notification($ff,button3,3, buttonPacket(0:3))
+		call endpoint_send(2,9,"write 3\r\n")
+	end if
+	if buttonID = 4 then
+		call gatt_server_write_attribute_value(button4,0,3, buttonPacket(0:3))(writeResult)
+		call gatt_server_send_characteristic_notification($ff,button4,3, buttonPacket(0:3))
+		call endpoint_send(2,9,"write 4\r\n")
+	end if
+	if buttonID = 5 then
+		call gatt_server_write_attribute_value(button5,0,3, buttonPacket(0:3))(writeResult)
+		call gatt_server_send_characteristic_notification($ff,button5,3, buttonPacket(0:3))
+		call endpoint_send(2,9,"write 5\r\n")
+	end if
+	if buttonID = 6 then
+		call gatt_server_write_attribute_value(button6,0,3, buttonPacket(0:3))(writeResult)
+		call gatt_server_send_characteristic_notification($ff,button6,3, buttonPacket(0:3))
+		call endpoint_send(2,9,"write 6\r\n")
+	end if
+	if buttonID = 7 then
+		call gatt_server_write_attribute_value(button7,0,3, buttonPacket(0:3))(writeResult)
+		call gatt_server_send_characteristic_notification($ff,button7,3, buttonPacket(0:3))
+		call endpoint_send(2,9,"write 7\r\n")
+	end if
+	if buttonID = 8 then
+		call gatt_server_write_attribute_value(button8,0,3, buttonPacket(0:3))(writeResult)
+		call gatt_server_send_characteristic_notification($ff,button8,3, buttonPacket(0:3))
+		call endpoint_send(2,9,"write 8\r\n")
+	end if
+
+	if (writeResult=0) then
+		call endpoint_send(2,15,"write success\r\n")
+	end if
+
+	if (writeResult=1) then
+		call endpoint_send(2,14,"write failed\r\n")
+	end if
+	
+		
+
+end
+
+
+# Incoming data event listener - GATT value changed by client
+#BGM111 event gatt_server_attribute_value(connection,attribute,att_opcode,offset,value_len, value_data)
+event gatt_server_attribute_value(connection,attribute,att_opcode,offset,value_len, value_data)
+    #if attribute = device_reset then
+    #end if
+end
+
+
+procedure subtractTime(button)
+
+	#Button 1
+	if(button=1) then
+		lastDown = button1_lastDown
+		lastUp = button1_lastUp	
+	end if
+
+	#Button 2
+	if(button=2) then
+		lastDown = button2_lastDown
+		lastUp = button2_lastUp	
+	end if
+
+	#Button 3
+	if(button=3) then
+		lastDown = button3_lastDown
+		lastUp = button3_lastUp	
+	end if
+
+	#Button 4
+	if(button=4) then
+		lastDown = button4_lastDown
+		lastUp = button4_lastUp	
+	end if
+
+	#Button 5
+	if(button=5) then
+		lastDown = button5_lastDown
+		lastUp = button5_lastUp	
+	end if
+
+	#Button 6
+	if(button=6) then
+		lastDown = button6_lastDown
+		lastUp = button6_lastUp	
+	end if
+
+	#Button 7
+	if(button=7) then
+		lastDown = button7_lastDown
+		lastUp = button7_lastUp	
+	end if
+
+	#Button 8
+	if(button=8) then
+		lastDown = button8_lastDown
+		lastUp = button8_lastUp	
+	end if
+
+
+	if(lastUp > lastDown) then
+		timeDif = lastUp - lastDown
+	else
+		timeDif = lastUp + 131070-lastDown
+	end if
+
+end	
+
+
+procedure buttonPressed(button, timestamp)
+
+	#Button 1
+	if (button=1) then
+		button1_lastDown = timestamp
+		button1_isDown = 1
+		call hardware_set_soft_timer(32760,1,1)
+	end if
+
+	#Button 2
+	if (button=2) then
+		button2_lastDown = timestamp
+		button2_isDown = 1
+		call hardware_set_soft_timer(32760,2,1)
+	end if
+
+	#Button 3
+	if (button=3) then
+		button3_lastDown = timestamp
+		button3_isDown = 1
+		call hardware_set_soft_timer(32760,3,1)
+	end if
+
+	#Button 4
+	if (button=4) then
+		button4_lastDown = timestamp
+		button4_isDown = 1
+		call hardware_set_soft_timer(32760,4,1)
+	end if
+
+	#Button 5
+	if (button=5) then
+		button5_lastDown = timestamp
+		button5_isDown = 1
+		call hardware_set_soft_timer(32760,5,1)
+	end if
+
+	#Button 6
+	if (button=6) then
+		button6_lastDown = timestamp
+		button6_isDown = 1
+		call hardware_set_soft_timer(32760,6,1)
+	end if
+
+	#Button 7
+	if (button=7) then
+		button7_lastDown = timestamp
+		button7_isDown = 1
+		call hardware_set_soft_timer(32760,7,1)
+	end if
+
+	#Button 8
+	if (button=8) then
+		button8_lastDown = timestamp
+		button8_isDown = 1
+		call hardware_set_soft_timer(32760,8,1)
+	end if
+
+end
+
+
+procedure buttonReleased(button, timestamp)
+
+	#Button 1
+	if(button=1) then
+		if(button1_isDown=1) then
+			button1_isDown=0
+			call printInt(button)
+			#call endpoint_send(2,7,"SHORT\r\n")
+			call sendButtonPush(button, SINGLECLICK)
+			call println()
+		end if
+	end if
+
+	#Button 2
+	if(button=2) then
+		if(button2_isDown=1) then
+			button2_isDown=0
+			call printInt(button)
+			#call endpoint_send(2,7,"SHORT\r\n")
+			call sendButtonPush(button, SINGLECLICK)
+			call println()
+		end if
+	end if
+
+	#Button 3
+	if(button=3) then
+		if(button3_isDown=1) then
+			button3_isDown=0
+			call printInt(button)
+			#call endpoint_send(2,7,"SHORT\r\n")
+			call sendButtonPush(button, SINGLECLICK)
+			call println()
+		end if
+	end if
+
+	#Button 4
+	if(button=4) then
+		if(button4_isDown=1) then
+			button4_isDown=0
+			call printInt(button)
+			#call endpoint_send(2,7,"SHORT\r\n")
+			call sendButtonPush(button, SINGLECLICK)
+			call println()
+		end if
+	end if
+
+	#Button 5
+	if(button=5) then
+		if(button5_isDown=1) then
+			button5_isDown=0
+			call printInt(button)
+			#call endpoint_send(2,7,"SHORT\r\n")
+			call sendButtonPush(button, SINGLECLICK)
+			call println()
+		end if
+	end if
+
+	#Button 6
+	if(button=6) then
+		if(button6_isDown=1) then
+			button6_isDown=0
+			call printInt(button)
+			#call endpoint_send(2,7,"SHORT\r\n")
+			call sendButtonPush(button, SINGLECLICK)
+			call println()
+		end if
+	end if
+
+	#Button 7
+	if(button=7) then
+		if(button7_isDown=1) then
+			button7_isDown=0
+			call printInt(button)
+			#call endpoint_send(2,7,"SHORT\r\n")
+			call sendButtonPush(button, SINGLECLICK)
+			call println()
+		end if
+	end if
+
+	#Button 8
+	if(button=8) then
+		if(button8_isDown=1) then
+			button8_isDown=0
+			call printInt(button)
+			#call endpoint_send(2,7,"SHORT\r\n")
+			call sendButtonPush(button, SINGLECLICK)
+			call println()
+		end if
+	end if
+
+end
+
+
+
+
+# Boot event listener - Generated when the module is started
+event system_boot(major,minor,patch,build,bootloader,hw)
+
+    is_connected = 0
+
+    # Set advertisement interval
+    call le_gap_set_adv_parameters(1600, 1600, 7)
+    
+    # Put module into discoverable/connectable mode
+    call le_gap_set_mode(le_gap_general_discoverable, le_gap_undirected_connectable)
+
+   
+	#Serial Write 
+	call endpoint_send(2,6,"boot\r\n")
+	call println()
+	
+
+    # Set Bondable mode
+
+    # Turn on the LED
+    call hardware_write_gpio(PORT_LED2,PIN_LED2, $00)
+
+
+	# Initialize hardware GPIOs
+	call init()
+
+	#call hardware_set_soft_timer(328,0,0)	
+	# Timer is not running
+	timer = 0
+	
+	button1_isDown = 0
+	button2_isDown = 0
+	button3_isDown = 0
+	button4_isDown = 0
+	button5_isDown = 0
+	button6_isDown = 0
+	button7_isDown = 0
+	button8_isDown = 0
+
+
+	sliderSpeedAverage = 0
+	sliderSpeedTotal= 0
+	sliderSpeedCounter = 1
+
+
+end 
+
+
+# Set up a connection interval of between 40*1.25ms to 160*1.25ms (50-200ms)
+# Android and iOS respond to connection interval updates, but cannot set them (they also have minimums)
+#BGM111#event le_connection_opened(address,address_type,master,connection,bonding)
+event le_connection_opened(address,address_type,master,connection,bonding)
+
+	if is_connected = 0 then
+		#BGM111#call le_connection_set_parameters(connection,min_interval,max_interval,latency,timeout)(result)
+		#call le_connection_set_parameters(connection, 40, 40, 0, 80)
+		call le_connection_set_parameters(connection, 6, 6, 0, 80)
+
+		#Turn on LED2 when connected
+		call hardware_write_gpio(PORT_LED2,PIN_LED2,PIN_LED2)
+
+   	# Device is connected.   
+		is_connected = 1
+
+		call endpoint_send(2,19,"Connection opened\r\n")
+		#call println()
+
+	end if
+
+end
+
+event hardware_soft_timer(handle) 
+
+	if (handle=1) then
+		if (button1_isDown=1) then
+			button1_isDown = 0
+			call printInt(handle)
+			#call endpoint_send(2,6,"LONG\r\n")
+			call sendButtonPush(1, LONGCLICK)
+			call println()
+		end if
+	end if
+	
+	if (handle=2) then
+		if (button2_isDown=1) then
+			button2_isDown = 0
+			call printInt(handle)
+			#call endpoint_send(2,6,"LONG\r\n")
+			call sendButtonPush(2, LONGCLICK)
+			call println()
+		end if
+	end if
+
+	if (handle=3) then
+		if (button3_isDown=1) then
+			button3_isDown = 0
+			call printInt(handle)
+			#call endpoint_send(2,6,"LONG\r\n")
+			call sendButtonPush(3, LONGCLICK)
+			call println()
+		end if
+	end if
+
+	if (handle=4) then
+		if (button4_isDown=1) then
+			button4_isDown = 0
+			call printInt(handle)
+			#call endpoint_send(2,6,"LONG\r\n")
+			call sendButtonPush(4, LONGCLICK)
+			call println()
+		end if
+	end if
+
+	if (handle=5) then
+		if (button5_isDown=1) then
+			button5_isDown = 0
+			call printInt(handle)
+			#call endpoint_send(2,6,"LONG\r\n")
+			call sendButtonPush(5, LONGCLICK)
+			call println()
+		end if
+	end if
+
+	if (handle=6) then
+		if (button6_isDown=1) then
+			button6_isDown = 0
+			call printInt(handle)
+			#call endpoint_send(2,6,"LONG\r\n")
+			call sendButtonPush(6, LONGCLICK)
+			call println()
+		end if
+	end if
+
+	if (handle=7) then
+		if (button7_isDown=1) then
+			button7_isDown = 0
+			call printInt(handle)
+			#call endpoint_send(2,6,"LONG\r\n")
+			call sendButtonPush(7, LONGCLICK)
+			call println()
+		end if
+	end if
+
+	if (handle=8) then
+		if (button8_isDown=1) then
+			button8_isDown = 0
+			call printInt(handle)
+			#call endpoint_send(2,6,"LONG\r\n")
+			call sendButtonPush(8, LONGCLICK)
+			call println()
+		end if
+	end if
+
+	if (handle=9) then
+		call readCPT112()
+	end if
+
+end
+
+
+# Custom read requests
+#This event indicates that a remote GATT client is attempting to read a value 
+#of an attribute from the local GATT database, where the attribute was defined
+#in the GATT XML firmware configuration file to have type="user".
+#
+#BGM111#event gatt_server_user_read_request(connection, characteristic, offset, maxsize)
+event gatt_server_user_read_request(connection, characteristic, offset, maxsize)
+    
+end
+
+
+# Generated when GATT characteristic client configuration value is changed
+#This command can be used to send notifications or indications to a remote GATT client. 
+#Notification or indication is sent only if the client has enabled them by setting 
+#the corresponding flag to the Client Characteristic Configuration descriptor.
+# 
+#BGM111#event gatt_server_characteristic_status(connection,characteristic,status_flags,client_config_flags)
+#event gatt_server_characteristic_status(connection,characteristic,status_flags,client_config_flags) 
+
+#end 
+
+# This event is generated when the local data base values are changed by GATT client 
+event gatt_server_attribute_value(connection,characteristic,att_opcode,offset,value_le,value)
+
+end
+
+# Disconnect event listener - generated when BLE connection is closed
+event le_connection_closed(reason,connection)
+
+  	# Device is connected.   
+	is_connected = 0
+
+
+	#Turn off LED
+	#call hardware_write_gpio(PORT_LED0,PIN_LED0,PIN_LED0)
+	call hardware_write_gpio(PORT_LED2,PIN_LED2,$00)
+
+	# Restart advertisement
+	call le_gap_set_mode(le_gap_general_discoverable,le_gap_undirected_connectable)
+	
+	# Stop software timer, since none is listening for the indications
+	call hardware_set_soft_timer(0,0,0)
+	call hardware_set_soft_timer(0,1,0)
+	call hardware_set_soft_timer(0,2,0)
+	call hardware_set_soft_timer(0,3,0)
+	call hardware_set_soft_timer(0,4,0)
+	call hardware_set_soft_timer(0,5,0)
+	call hardware_set_soft_timer(0,6,0)
+	call hardware_set_soft_timer(0,7,0)
+	call hardware_set_soft_timer(0,8,0)
+	call hardware_set_soft_timer(0,9,0)
+	timer = 0
+		
+	call endpoint_send(2,19,"Connection closed\r\n")
+end
+
+
+event hardware_interrupt(interrupts,timestamp)
+
+#call hardware_read_gpio(port,mask)(result,data)
+
+	#Button 1	
+    if (interrupts & PIN_BUTTON_1) = PIN_BUTTON_1 then
+		call hardware_read_gpio(PORT_BUTTON_1,PIN_BUTTON_1)(result,data)
+		if (data & PIN_BUTTON_1) = 0 then
+			call buttonPressed(1,timestamp)
+		end if
+		if (data & PIN_BUTTON_1) = PIN_BUTTON_1 then
+			call buttonReleased(1,timestamp)
+		end if
+    end if
+
+	#Button 2	
+    if (interrupts & PIN_BUTTON_2) = PIN_BUTTON_2 then
+		call hardware_read_gpio(PORT_BUTTON_2,PIN_BUTTON_2)(result,data)
+		if (data & PIN_BUTTON_2) = 0 then
+			call buttonPressed(2,timestamp)
+		end if
+		if (data & PIN_BUTTON_2) = PIN_BUTTON_2 then
+			call buttonReleased(2,timestamp)
+		end if
+    end if
+
+	#Button 3	
+    if (interrupts & PIN_BUTTON_3) = PIN_BUTTON_3 then
+		call hardware_read_gpio(PORT_BUTTON_3,PIN_BUTTON_3)(result,data)
+		if (data & PIN_BUTTON_3) = 0 then
+			call buttonPressed(3,timestamp)
+		end if
+		if (data & PIN_BUTTON_3) = PIN_BUTTON_3 then
+			call buttonReleased(3,timestamp)
+		end if
+    end if
+
+	#Button 4	
+    if (interrupts & PIN_BUTTON_4) = PIN_BUTTON_4 then
+		call hardware_read_gpio(PORT_BUTTON_4,PIN_BUTTON_4)(result,data)
+		if (data & PIN_BUTTON_4) = 0 then
+			call buttonPressed(4,timestamp)
+		end if
+		if (data & PIN_BUTTON_4) = PIN_BUTTON_4 then
+			call buttonReleased(4,timestamp)
+		end if
+    end if
+
+	#Button 5	
+    if (interrupts & PIN_BUTTON_5) = PIN_BUTTON_5 then
+		call hardware_read_gpio(PORT_BUTTON_5,PIN_BUTTON_5)(result,data)
+		if (data & PIN_BUTTON_5) = 0 then
+			call buttonPressed(5,timestamp)
+		end if
+		if (data & PIN_BUTTON_5) = PIN_BUTTON_5 then
+			call buttonReleased(5,timestamp)
+		end if
+    end if
+
+	#Button 6	
+    if (interrupts & PIN_BUTTON_6) = PIN_BUTTON_6 then
+		call hardware_read_gpio(PORT_BUTTON_6,PIN_BUTTON_6)(result,data)
+		if (data & PIN_BUTTON_6) = 0 then
+			call buttonPressed(6,timestamp)
+		end if
+		if (data & PIN_BUTTON_6) = PIN_BUTTON_6 then
+			call buttonReleased(6,timestamp)
+		end if
+    end if
+
+	#Button 7	
+    if (interrupts & PIN_BUTTON_7) = PIN_BUTTON_7 then
+		call hardware_read_gpio(PORT_BUTTON_7,PIN_BUTTON_7)(result,data)
+		if (data & PIN_BUTTON_7) = 0 then
+			call buttonPressed(7,timestamp)
+		end if
+		if (data & PIN_BUTTON_7) = PIN_BUTTON_7 then
+			call buttonReleased(7,timestamp)
+		end if
+    end if
+	
+	#Button 8	
+    if (interrupts & PIN_BUTTON_8) = PIN_BUTTON_8 then
+		call hardware_read_gpio(PORT_BUTTON_8,PIN_BUTTON_8)(result,data)
+		if (data & PIN_BUTTON_8) = 0 then
+			call buttonPressed(8,timestamp)
+		end if
+		if (data & PIN_BUTTON_8) = PIN_BUTTON_8 then
+			call buttonReleased(8,timestamp)
+		end if
+    end if
+
+	#CPT112 I2C Interrupt
+    if (interrupts & PIN_BUTTON_CPT112_INT) = PIN_BUTTON_CPT112_INT then
+
+		call hardware_read_gpio(PORT_BUTTON_CPT112_INT,PIN_BUTTON_CPT112_INT)(result,data)
+
+		if (data & PIN_BUTTON_CPT112_INT) = 0 then
+    		call hardware_write_gpio(PORT_LED1,PIN_LED1, $00)
+			#call endpoint_send(2,22,"cpt112 interrupt LOW\r\n")
+			call hardware_set_soft_timer(1500,9,0)
+		end if
+    	
+		if (data & PIN_BUTTON_CPT112_INT) = PIN_BUTTON_CPT112_INT then
+    		call hardware_write_gpio(PORT_LED1,PIN_LED1, PIN_LED1)
+			#call endpoint_send(2,23,"cpt112 interrupt HIGH\r\n")
+			call hardware_set_soft_timer(0,9,0)
+		end if
+
+    end if
+
+end
+
+event gatt_server_characteristic_status(connection,characteristic,status_flags,client_config_flags)
+			call endpoint_send(2,21,"char status changed\r\n")
+end
